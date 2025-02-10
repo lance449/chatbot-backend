@@ -11,6 +11,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Add other seeders here if needed
+        $this->call([
+            HotelSeeder::class,
+        ]);
     }
 }
