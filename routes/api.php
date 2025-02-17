@@ -12,6 +12,7 @@ Route::post('/login', [AuthController::class, 'login']);
 // Room Routes
 Route::post('/check-availability', [RoomController::class, 'checkAvailability']);
 Route::get('/rooms', [RoomController::class, 'getAvailableRooms']);
+Route::post('/assign-room', [RoomController::class, 'assignRoom']); // Ensure this line is present
 
 // Booking Routes
 Route::post('/save-booking', [BookingController::class, 'store']);
