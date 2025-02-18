@@ -166,58 +166,52 @@ class RoomController extends Controller
     public function assignRoom(Request $request)
     {
         try {
-            Log::info('Received request:', $request->all());
+            Log::info('Assign Room Request:', $request->all());
 
-            $validated = $request->validate([
-                'hotel_id' => 'required|integer|exists:hotels,id',
+            $validatedData = $request->validate([
+                'hotel_id' => 'required|exists:hotels,id',
                 'check_in' => 'required|date',
                 'check_out' => 'required|date|after_or_equal:check_in',
                 'room_type' => 'required|string',
                 'num_guests' => 'required|integer|min:1',
                 'customer_name' => 'required|string',
                 'customer_email' => 'required|email',
-                'customer_phone' => 'required|string',
+                'customer_phone' => 'required|string'
             ]);
 
-            Log::info('Validated data:', $validated);
+            Log::info('Validated Data:', $validatedData);
 
-            // Find an available room
-            $room = Room::where('hotel_id', $validated['hotel_id'])
-                ->where('room_type', $validated['room_type'])
-                ->where('capacity', '>=', $validated['num_guests'])
-                ->where('is_available', true)
-                ->first();
+            // Find an available room of the specified type
+            $room = Room::where('hotel_id', $validatedData['hotel_id'])
+                        ->where('room_type', $validatedData['room_type'])
+                        ->whereDoesntHave('reservations', function ($query) use ($validatedData) {
+                            $query->where('check_in', '<=', $validatedData['check_out'])
+                                  ->where('check_out', '>=', $validatedData['check_in']);
+                        })
+                        ->first();
 
             if (!$room) {
-                Log::error('No available rooms found:', $validated);
-                return response()->json(['error' => 'No available rooms found.'], 404);
+                Log::warning('No available rooms found for the specified dates.', $validatedData);
+                return response()->json(['error' => 'No available rooms found for the specified dates.'], 404);
             }
 
-            // Mark the room as unavailable
-            $room->is_available = false;
-            $room->save();
-
-            // Create a reservation
-            $reservation = new Reservation();
-            $reservation->hotel_id = $validated['hotel_id'];
-            $reservation->room_id = $room->id;
-            $reservation->check_in = $validated['check_in'];
-            $reservation->check_out = $validated['check_out'];
-            $reservation->num_guests = $validated['num_guests'];
-            $reservation->customer_name = $validated['customer_name'];
-            $reservation->customer_email = $validated['customer_email'];
-            $reservation->customer_phone = $validated['customer_phone'];
-            $reservation->save();
-
-            return response()->json([
-                'message' => 'Reservation confirmed',
-                'room_number' => $room->id,
-                'reservation_details' => $reservation
+            // Create a new reservation
+            $reservation = Reservation::create([
+                'hotel_id' => $validatedData['hotel_id'],
+                'room_id' => $room->id,
+                'check_in' => $validatedData['check_in'],
+                'check_out' => $validatedData['check_out'],
+                'num_guests' => $validatedData['num_guests'],
+                'customer_name' => $validatedData['customer_name'],
+                'customer_email' => $validatedData['customer_email'],
+                'customer_phone' => $validatedData['customer_phone']
             ]);
+
+            Log::info('Reservation created successfully.', ['reservation_id' => $reservation->id]);
+
+            return response()->json(['room_number' => $room->id, 'reservation_id' => $reservation->id], 201);
         } catch (\Exception $e) {
-            Log::error('Error assigning room: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error assigning room:', ['exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Server error. Please try again later.'], 500);
         }
     }
