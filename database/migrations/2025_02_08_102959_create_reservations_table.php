@@ -10,8 +10,8 @@ return new class extends Migration {
         if (!Schema::hasTable('reservations')) {
             Schema::create('reservations', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('hotel_id')->constrained('hotels')->onDelete('cascade'); // Add hotel_id column
-                $table->foreignId('room_id')->constrained('rooms')->onDelete('cascade'); // Explicitly reference 'rooms' table
+                $table->foreignId('hotel_id')->constrained('hotels')->onDelete('cascade');
+                $table->foreignId('room_id')->constrained('rooms')->onDelete('cascade');
                 $table->string('customer_name');
                 $table->string('customer_email');
                 $table->string('customer_phone');
